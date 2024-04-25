@@ -1,3 +1,4 @@
+using System.Data;
 using System.Data.SqlClient;
 using APBD_07.Models;
 using Microsoft.AspNetCore.Mvc;
@@ -123,6 +124,47 @@ namespace APBD_07.Controllers
         
                 var insertedId = (int)command.ExecuteScalar();
                 return insertedId;
+            }
+        }
+
+        [HttpPost("AddWithStoredProcedure")]
+        public IActionResult AddProductToWarehouseWithStoredProcedure([FromBody] Warehouse request)
+        {
+            if (request.Amount <= 0) return BadRequest("ilosc ma byc wiesza od 0 dumbahh.");
+
+            try
+            {
+                using (var connection = new SqlConnection(_connectionString))
+                {
+                    using (var command = new SqlCommand("AddProductToWarehouse", connection))
+                    {
+                        command.CommandType = CommandType.StoredProcedure;
+                        command.Parameters.Add(new SqlParameter("@IdProduct", request.IdProduct));
+                        command.Parameters.Add(new SqlParameter("@IdWarehouse", request.IdWarehouse));
+                        command.Parameters.Add(new SqlParameter("@Amount", request.Amount));
+                        command.Parameters.Add(new SqlParameter("@CreatedAt", request.CreatedAt));
+
+                        connection.Open();
+
+                        var newId = command.ExecuteScalar();
+                        if (newId != null)
+                        {
+                            return Ok(new { IdProductWarehouse = newId });
+                        }
+                        else
+                        {
+                            return BadRequest("nie wyszlo dodac produkt do warehouse.");
+                        }
+                    }
+                }
+            }
+            catch (SqlException ex)
+            {
+                return ex.Number == 18 ? BadRequest(ex.Message) : StatusCode(500, "server error: " + ex.Message);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, "server error: " + ex.Message);
             }
         }
 
