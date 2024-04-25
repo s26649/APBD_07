@@ -44,31 +44,87 @@ namespace APBD_07.Controllers
 
         private bool ProductExists(int productId, SqlConnection connection)
         {
-            return true;
+            var query = "SELECT COUNT(1) FROM Product WHERE IdProduct = @IdProduct";
+            using (var command = new SqlCommand(query, connection))
+            {
+                command.Parameters.AddWithValue("@IdProduct", productId);
+                var exists = (int)command.ExecuteScalar();
+                return exists > 0;
+            }
         }
 
         private bool WarehouseExists(int warehouseId, SqlConnection connection)
         {
-            return true;
+            var query = "SELECT COUNT(1) FROM Warehouse WHERE IdWarehouse = @IdWarehouse";
+            using (var command = new SqlCommand(query, connection))
+            {
+                command.Parameters.AddWithValue("@IdWarehouse", warehouseId);
+                var exists = (int)command.ExecuteScalar();
+                return exists > 0;
+            }
         }
 
         private int GetOrder(Warehouse request, SqlConnection connection)
         {
-            return 1;
+            var query = @"
+                SELECT TOP 1 IdOrder FROM [Order] 
+                WHERE IdProduct = @IdProduct AND Amount = @Amount AND CreatedAt < @CreatedAt";
+            
+            using (var command = new SqlCommand(query, connection))
+            {
+                command.Parameters.AddWithValue("@IdProduct", request.IdProduct);
+                command.Parameters.AddWithValue("@Amount", request.Amount);
+                command.Parameters.AddWithValue("@CreatedAt", request.CreatedAt);
+                var orderId = command.ExecuteScalar();
+                return (orderId != null) ? (int)orderId : 0;
+            }
         }
+
 
         private bool IsOrderFulfilled(int orderId, SqlConnection connection)
         {
-            return false;
+            var query = "SELECT COUNT(1) FROM Product_Warehouse WHERE IdOrder = @IdOrder";
+            
+            using (var command = new SqlCommand(query, connection))
+            {
+                command.Parameters.AddWithValue("@IdOrder", orderId);
+                var exists = (int)command.ExecuteScalar();
+                return exists > 0;
+            }
         }
 
         private void UpdateOrderFulfilledAt(int orderId, SqlConnection connection)
         {
+            var query = "UPDATE [Order] SET FulfilledAt = GETDATE() WHERE IdOrder = @IdOrder";
+            
+            using (var command = new SqlCommand(query, connection))
+            {
+                command.Parameters.AddWithValue("@IdOrder", orderId);
+                command.ExecuteNonQuery();
+            }
         }
 
         private int InsertProductWarehouse(int orderId, Warehouse request, SqlConnection connection)
         {
-            return 1;
+            var query = @"
+                INSERT INTO Product_Warehouse (IdWarehouse, IdProduct, IdOrder, Amount, Price, CreatedAt) 
+                OUTPUT INSERTED.IdProductWarehouse 
+                VALUES (@IdWarehouse, @IdProduct, @IdOrder, @Amount, 
+                        (SELECT Price FROM Product WHERE IdProduct = @IdProduct) * @Amount, 
+                        @CreatedAt)";
+            
+            using (var command = new SqlCommand(query, connection))
+            {
+                command.Parameters.AddWithValue("@IdWarehouse", request.IdWarehouse);
+                command.Parameters.AddWithValue("@IdProduct", request.IdProduct);
+                command.Parameters.AddWithValue("@IdOrder", orderId);
+                command.Parameters.AddWithValue("@Amount", request.Amount);
+                command.Parameters.AddWithValue("@CreatedAt", request.CreatedAt);
+        
+                var insertedId = (int)command.ExecuteScalar();
+                return insertedId;
+            }
         }
+
     }
 }
