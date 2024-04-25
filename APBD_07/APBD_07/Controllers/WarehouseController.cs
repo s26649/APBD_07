@@ -147,14 +147,8 @@ namespace APBD_07.Controllers
                         connection.Open();
 
                         var newId = command.ExecuteScalar();
-                        if (newId != null)
-                        {
-                            return Ok(new { IdProductWarehouse = newId });
-                        }
-                        else
-                        {
-                            return BadRequest("nie wyszlo dodac produkt do warehouse.");
-                        }
+                        return newId != null ? Ok(new { IdProductWarehouse = newId }) : BadRequest("nie wyszlo dodac produkt do warehouse.");
+
                     }
                 }
             }
